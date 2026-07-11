@@ -662,6 +662,21 @@
   .lb-score { font-size: 14px; font-weight: 800; }
 
   /* ====== PROFILE TAB ====== */
+  /* ====== ACCOUNT / LOGIN CARD ====== */
+  .account-card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .account-text { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
+  .account-signed-in { display: flex; align-items: center; gap: 12px; }
+  .account-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border-mid); }
+  .account-info { flex: 1; min-width: 0; }
+  .account-name { font-weight: 800; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-sync-status { font-size: 12px; color: var(--correct); margin-top: 2px; }
+
   .profile-nick-row {
     display: flex;
     gap: 8px;
@@ -692,6 +707,11 @@
   .profile-stat-value { font-size: 20px; font-weight: 900; color: var(--accent-gold); }
   .profile-stat-label { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
 </style>
+
+<!-- Firebase (compat build — works as regular <script>, no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div id="app">
@@ -811,6 +831,24 @@
   <!-- PROFILE SCREEN -->
   <div class="screen" id="profileScreen">
     <div class="map-title" id="profileTitleLabel">Profile</div>
+
+    <div class="account-card" id="accountCard">
+      <div class="account-signed-out" id="accountSignedOut">
+        <div class="account-text" id="accountSignedOutText">Sign in to save your progress permanently, so it's safe even if you reinstall the app.</div>
+        <button class="btn-primary" id="googleSignInBtn">
+          <span id="googleSignInBtnText">Sign in with Google</span>
+        </button>
+      </div>
+      <div class="account-signed-in" id="accountSignedIn" style="display:none;">
+        <img class="account-avatar" id="accountAvatar" src="" alt="">
+        <div class="account-info">
+          <div class="account-name" id="accountName">—</div>
+          <div class="account-sync-status" id="accountSyncStatus">Synced ✓</div>
+        </div>
+        <button class="btn-secondary" id="signOutBtn">Sign Out</button>
+      </div>
+    </div>
+
     <div class="profile-nick-row">
       <input type="text" id="nicknameInput" maxlength="14" placeholder="Set your nickname">
       <button class="btn-secondary" id="saveNicknameBtn">Save</button>
@@ -832,6 +870,25 @@
 </div>
 
 <script>
+/* ====== FIREBASE SETUP ======
+   Handles Google sign-in and syncing progress (stars, solved questions,
+   test history, nickname) to the cloud so it survives app reinstalls or
+   switching phones. Works entirely client-side — no server of our own. */
+const firebaseConfig = {
+  apiKey: "AIzaSyB-O6WlZMUEGSRJzSxiE5aDpEppi0gs5KE",
+  authDomain: "stagequest-79934.firebaseapp.com",
+  projectId: "stagequest-79934",
+  storageBucket: "stagequest-79934.firebasestorage.app",
+  messagingSenderId: "110148476417",
+  appId: "1:110148476417:web:99da4caafc97948f0fea00"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
+let currentUser = null;
+let syncInProgress = false;
+let pendingSyncTimer = null;
+
 const UI_TEXT = {
   en: {
     appName: "Stage",
@@ -891,6 +948,11 @@ const UI_TEXT = {
     markLearned: "✅ Mark as Learned",
     testHistoryLabel: "Past Attempts",
     noTestHistory: "No tests taken yet. Your first test will show up here.",
+    accountSignInPrompt: "Sign in to save your progress permanently, so it's safe even if you reinstall the app.",
+    signInWithGoogle: "Sign in with Google",
+    signOutBtn: "Sign Out",
+    syncedStatus: "Synced ✓",
+    syncingStatus: "Syncing…",
     topics: {
       gk: "General Knowledge",
       history: "History",
@@ -958,6 +1020,11 @@ const UI_TEXT = {
     markLearned: "✅ सीख लिया, हटाओ",
     testHistoryLabel: "पिछले टेस्ट",
     noTestHistory: "अभी तक कोई टेस्ट नहीं दिया। पहला टेस्ट यहां दिखेगा।",
+    accountSignInPrompt: "अपनी प्रगति हमेशा के लिए सेव करने के लिए साइन इन करें, ताकि ऐप फिर से इंस्टॉल करने पर भी वह सुरक्षित रहे।",
+    signInWithGoogle: "Google से साइन इन करें",
+    signOutBtn: "साइन आउट",
+    syncedStatus: "सिंक हो गया ✓",
+    syncingStatus: "सिंक हो रहा है…",
     topics: {
       gk: "सामान्य ज्ञान",
       history: "इतिहास",
@@ -2337,6 +2404,7 @@ function saveProgress() {
   } catch (e) {
     // Storage might be unavailable (private browsing, quota exceeded) — fail silently
   }
+  syncToCloud();
 }
 
 function loadProgress() {
@@ -2562,6 +2630,10 @@ function applyLanguageToStaticUI() {
   document.getElementById('nicknameInput').placeholder = t('nicknamePlaceholder');
   document.getElementById('saveNicknameBtn').textContent = t('saveBtn');
   document.getElementById('revisionLabel').textContent = t('revisionTitle');
+
+  document.getElementById('accountSignedOutText').textContent = t('accountSignInPrompt');
+  document.getElementById('googleSignInBtnText').textContent = t('signInWithGoogle');
+  document.getElementById('signOutBtn').textContent = t('signOutBtn');
 
   updateTestScreen();
   renderLeaderboard();
@@ -3023,6 +3095,7 @@ function saveSolvedPool(pool) {
   } catch (e) {
     // storage unavailable — fail silently
   }
+  syncToCloud();
 }
 
 function recordSolvedQuestion(topicId, lang, q, wasCorrect, originalIndex) {
@@ -3131,6 +3204,7 @@ function saveTestHistoryEntry(correct, total) {
   } catch (e) {
     // storage unavailable — fail silently
   }
+  syncToCloud();
 }
 
 function formatHistoryDate(ts) {
@@ -3196,6 +3270,7 @@ function saveNickname(name) {
   } catch (e) {
     // ignore
   }
+  syncToCloud();
 }
 
 function renderLeaderboard() {
@@ -3276,6 +3351,113 @@ document.getElementById('navHomeBtn').onclick = () => { playTapSound(); showScre
 document.getElementById('navTestBtn').onclick = () => { playTapSound(); showScreen('testScreen'); };
 document.getElementById('navLeaderboardBtn').onclick = () => { playTapSound(); showScreen('leaderboardScreen'); };
 document.getElementById('navProfileBtn').onclick = () => { playTapSound(); showScreen('profileScreen'); };
+
+/* ====== FIREBASE SYNC ======
+   Bundles the four localStorage blobs (progress, solved-question pool, test
+   history, nickname) into one Firestore doc per signed-in user, and pulls
+   them back down on sign-in so progress survives reinstalls / new phones. */
+const CLOUD_SYNC_KEYS = {
+  progress: SAVE_KEY,
+  solvedPool: SOLVED_POOL_KEY,
+  testHistory: TEST_HISTORY_KEY,
+  nickname: NICKNAME_KEY
+};
+
+function collectLocalDataForSync() {
+  const data = {};
+  Object.entries(CLOUD_SYNC_KEYS).forEach(([field, key]) => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw !== null) data[field] = raw;
+    } catch (e) {
+      // ignore
+    }
+  });
+  data.updatedAt = Date.now();
+  return data;
+}
+
+function applyCloudDataLocally(data) {
+  if (!data) return;
+  Object.entries(CLOUD_SYNC_KEYS).forEach(([field, key]) => {
+    if (data[field] !== undefined) {
+      try { localStorage.setItem(key, data[field]); } catch (e) { /* ignore */ }
+    }
+  });
+}
+
+function updateSyncStatus(text) {
+  const el = document.getElementById('accountSyncStatus');
+  if (el) el.textContent = text;
+}
+
+function syncToCloud() {
+  if (!currentUser) return;
+  clearTimeout(pendingSyncTimer);
+  pendingSyncTimer = setTimeout(() => {
+    updateSyncStatus(t('syncingStatus'));
+    const data = collectLocalDataForSync();
+    fbDb.collection('users').doc(currentUser.uid).set(data, { merge: true })
+      .then(() => updateSyncStatus(t('syncedStatus')))
+      .catch(() => updateSyncStatus(t('syncedStatus')));
+  }, 1200); // debounce so rapid answers during a quiz don't spam writes
+}
+
+function pullFromCloud() {
+  if (!currentUser) return;
+  fbDb.collection('users').doc(currentUser.uid).get().then(doc => {
+    if (doc.exists) {
+      applyCloudDataLocally(doc.data());
+      loadProgress();
+      currentLang = state.lang;
+      applyLanguageToStaticUI();
+      updateStreakDisplay();
+      const activeScreen = document.querySelector('.screen.active').id;
+      showScreen(activeScreen === 'langScreen' ? 'topicScreen' : activeScreen);
+      document.getElementById('bottomNav').classList.remove('hide');
+    } else {
+      // first time this account has ever signed in — push whatever is on this device
+      syncToCloud();
+    }
+    updateSyncStatus(t('syncedStatus'));
+  }).catch(() => {
+    updateSyncStatus(t('syncedStatus'));
+  });
+}
+
+function updateAccountUI(user) {
+  const signedOut = document.getElementById('accountSignedOut');
+  const signedIn = document.getElementById('accountSignedIn');
+  if (user) {
+    signedOut.style.display = 'none';
+    signedIn.style.display = 'flex';
+    document.getElementById('accountAvatar').src = user.photoURL || '';
+    document.getElementById('accountName').textContent = user.displayName || user.email || 'Signed in';
+  } else {
+    signedOut.style.display = 'block';
+    signedIn.style.display = 'none';
+  }
+}
+
+fbAuth.onAuthStateChanged(user => {
+  currentUser = user;
+  updateAccountUI(user);
+  if (user) pullFromCloud();
+});
+
+document.getElementById('googleSignInBtn').onclick = () => {
+  playTapSound();
+  const provider = new firebase.auth.GoogleAuthProvider();
+  fbAuth.signInWithPopup(provider).catch(err => {
+    console.error('Sign-in failed', err);
+    alert(state.lang === 'hi' ? 'Sign in nahi ho paaya. Dobara try karo.' : 'Sign in failed. Please try again.');
+  });
+};
+
+document.getElementById('signOutBtn').onclick = () => {
+  playTapSound();
+  fbAuth.signOut();
+};
 
 /* ====== INIT ======
    Loads any saved progress first. If the person has played before (we have
