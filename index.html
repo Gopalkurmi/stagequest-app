@@ -880,11 +880,6 @@
         <button class="btn-primary" id="verifyOtpBtn" style="display:none;">Verify & Sign In</button>
         <div class="account-status-text" id="otpStatusText"></div>
 
-        <div class="or-divider" id="orDividerText">— OR —</div>
-        <button class="btn-secondary" id="googleSignInBtn">
-          <span id="googleSignInBtnText">Sign in with Google</span>
-        </button>
-
         <div id="recaptcha-container"></div>
       </div>
       <div class="account-signed-in" id="accountSignedIn" style="display:none;">
@@ -2704,7 +2699,6 @@ function applyLanguageToStaticUI() {
   document.getElementById('revisionLabel').textContent = t('revisionTitle');
 
   document.getElementById('accountSignedOutText').textContent = t('accountSignInPrompt');
-  document.getElementById('googleSignInBtnText').textContent = t('signInWithGoogle');
   document.getElementById('signOutBtn').textContent = t('signOutBtn');
   document.getElementById('sendOtpBtn').textContent = t('sendOtp');
   document.getElementById('verifyOtpBtn').textContent = t('verifyAndSignIn');
@@ -3521,15 +3515,6 @@ fbAuth.onAuthStateChanged(user => {
   updateAccountUI(user);
   if (user) pullFromCloud();
 });
-
-document.getElementById('googleSignInBtn').onclick = () => {
-  playTapSound();
-  const provider = new firebase.auth.GoogleAuthProvider();
-  fbAuth.signInWithPopup(provider).catch(err => {
-    console.error('Sign-in failed', err);
-    alert(state.lang === 'hi' ? 'Sign in nahi ho paaya. Dobara try karo.' : 'Sign in failed. Please try again.');
-  });
-};
 
 document.getElementById('signOutBtn').onclick = () => {
   playTapSound();
