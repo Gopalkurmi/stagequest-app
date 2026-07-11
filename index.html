@@ -662,53 +662,6 @@
   .lb-score { font-size: 14px; font-weight: 800; }
 
   /* ====== PROFILE TAB ====== */
-  /* ====== ACCOUNT / LOGIN CARD ====== */
-  .account-card {
-    background: var(--bg-panel);
-    border: 1px solid var(--border-soft);
-    border-radius: 16px;
-    padding: 18px;
-    margin-bottom: 18px;
-  }
-  .account-text { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.5; }
-  .account-signed-in { display: flex; align-items: center; gap: 12px; }
-  .account-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border-mid); }
-  .account-info { flex: 1; min-width: 0; }
-  .account-name { font-weight: 800; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .account-sync-status { font-size: 12px; color: var(--correct); margin-top: 2px; }
-  .phone-login-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .phone-prefix {
-    background: var(--bg-deep);
-    border: 1px solid var(--border-mid);
-    color: var(--text-light);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-weight: 700;
-    font-size: 14px;
-  }
-  .phone-login-row input {
-    flex: 1;
-    background: var(--bg-deep);
-    border: 1px solid var(--border-mid);
-    color: var(--text-light);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 14px;
-  }
-  .account-status-text { font-size: 12.5px; color: var(--text-dim); margin: 6px 0 10px; min-height: 16px; }
-  .or-divider {
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 12px;
-    font-weight: 700;
-    margin: 14px 0;
-  }
-
   .profile-nick-row {
     display: flex;
     gap: 8px;
@@ -739,11 +692,6 @@
   .profile-stat-value { font-size: 20px; font-weight: 900; color: var(--accent-gold); }
   .profile-stat-label { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
 </style>
-
-<!-- Firebase (compat build — works as regular <script>, no bundler needed) -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div id="app">
@@ -864,34 +812,6 @@
   <div class="screen" id="profileScreen">
     <div class="map-title" id="profileTitleLabel">Profile</div>
 
-    <div class="account-card" id="accountCard">
-      <div class="account-signed-out" id="accountSignedOut">
-        <div class="account-text" id="accountSignedOutText">Sign in to save your progress permanently, so it's safe even if you reinstall the app.</div>
-
-        <div class="phone-login-row" id="phoneEntryRow">
-          <span class="phone-prefix">+91</span>
-          <input type="tel" id="phoneNumberInput" maxlength="10" placeholder="10-digit mobile number" inputmode="numeric">
-        </div>
-        <button class="btn-primary" id="sendOtpBtn">Send OTP</button>
-
-        <div class="phone-login-row" id="otpEntryRow" style="display:none;">
-          <input type="tel" id="otpInput" maxlength="6" placeholder="Enter 6-digit OTP" inputmode="numeric">
-        </div>
-        <button class="btn-primary" id="verifyOtpBtn" style="display:none;">Verify & Sign In</button>
-        <div class="account-status-text" id="otpStatusText"></div>
-
-        <div id="recaptcha-container"></div>
-      </div>
-      <div class="account-signed-in" id="accountSignedIn" style="display:none;">
-        <img class="account-avatar" id="accountAvatar" src="" alt="">
-        <div class="account-info">
-          <div class="account-name" id="accountName">—</div>
-          <div class="account-sync-status" id="accountSyncStatus">Synced ✓</div>
-        </div>
-        <button class="btn-secondary" id="signOutBtn">Sign Out</button>
-      </div>
-    </div>
-
     <div class="profile-nick-row">
       <input type="text" id="nicknameInput" maxlength="14" placeholder="Set your nickname">
       <button class="btn-secondary" id="saveNicknameBtn">Save</button>
@@ -913,25 +833,6 @@
 </div>
 
 <script>
-/* ====== FIREBASE SETUP ======
-   Handles Google sign-in and syncing progress (stars, solved questions,
-   test history, nickname) to the cloud so it survives app reinstalls or
-   switching phones. Works entirely client-side — no server of our own. */
-const firebaseConfig = {
-  apiKey: "AIzaSyB-O6WlZMUEGSRJzSxiE5aDpEppi0gs5KE",
-  authDomain: "stagequest-79934.firebaseapp.com",
-  projectId: "stagequest-79934",
-  storageBucket: "stagequest-79934.firebasestorage.app",
-  messagingSenderId: "110148476417",
-  appId: "1:110148476417:web:99da4caafc97948f0fea00"
-};
-firebase.initializeApp(firebaseConfig);
-const fbAuth = firebase.auth();
-const fbDb = firebase.firestore();
-let currentUser = null;
-let syncInProgress = false;
-let pendingSyncTimer = null;
-
 const UI_TEXT = {
   en: {
     appName: "Stage",
@@ -991,23 +892,6 @@ const UI_TEXT = {
     markLearned: "✅ Mark as Learned",
     testHistoryLabel: "Past Attempts",
     noTestHistory: "No tests taken yet. Your first test will show up here.",
-    accountSignInPrompt: "Sign in to save your progress permanently, so it's safe even if you reinstall the app.",
-    signInWithGoogle: "Sign in with Google",
-    signOutBtn: "Sign Out",
-    syncedStatus: "Synced ✓",
-    syncingStatus: "Syncing…",
-    sendOtp: "Send OTP",
-    verifyAndSignIn: "Verify & Sign In",
-    orDivider: "— OR —",
-    phoneNumberPlaceholder: "10-digit mobile number",
-    otpPlaceholder: "Enter 6-digit OTP",
-    otpSentMsg: "OTP sent! Check your SMS.",
-    invalidPhoneMsg: "Please enter a valid 10-digit mobile number.",
-    invalidOtpMsg: "Please enter the 6-digit OTP.",
-    otpFailedMsg: "Couldn't send OTP. Please check the number and try again.",
-    otpWrongMsg: "Wrong OTP. Please try again.",
-    sendingOtpMsg: "Sending OTP…",
-    verifyingOtpMsg: "Verifying…",
     topics: {
       gk: "General Knowledge",
       history: "History",
@@ -1075,23 +959,6 @@ const UI_TEXT = {
     markLearned: "✅ सीख लिया, हटाओ",
     testHistoryLabel: "पिछले टेस्ट",
     noTestHistory: "अभी तक कोई टेस्ट नहीं दिया। पहला टेस्ट यहां दिखेगा।",
-    accountSignInPrompt: "अपनी प्रगति हमेशा के लिए सेव करने के लिए साइन इन करें, ताकि ऐप फिर से इंस्टॉल करने पर भी वह सुरक्षित रहे।",
-    signInWithGoogle: "Google से साइन इन करें",
-    signOutBtn: "साइन आउट",
-    syncedStatus: "सिंक हो गया ✓",
-    syncingStatus: "सिंक हो रहा है…",
-    sendOtp: "OTP भेजें",
-    verifyAndSignIn: "वेरिफाई करें और साइन इन करें",
-    orDivider: "— या —",
-    phoneNumberPlaceholder: "10 अंकों का मोबाइल नंबर",
-    otpPlaceholder: "6 अंकों का OTP डालें",
-    otpSentMsg: "OTP भेज दिया गया! अपना SMS चेक करें।",
-    invalidPhoneMsg: "कृपया सही 10 अंकों का मोबाइल नंबर डालें।",
-    invalidOtpMsg: "कृपया 6 अंकों का OTP डालें।",
-    otpFailedMsg: "OTP नहीं भेजा जा सका। नंबर चेक करके दोबारा कोशिश करें।",
-    otpWrongMsg: "गलत OTP। दोबारा कोशिश करें।",
-    sendingOtpMsg: "OTP भेजा जा रहा है…",
-    verifyingOtpMsg: "वेरिफाई हो रहा है…",
     topics: {
       gk: "सामान्य ज्ञान",
       history: "इतिहास",
@@ -2471,7 +2338,6 @@ function saveProgress() {
   } catch (e) {
     // Storage might be unavailable (private browsing, quota exceeded) — fail silently
   }
-  syncToCloud();
 }
 
 function loadProgress() {
@@ -2697,14 +2563,6 @@ function applyLanguageToStaticUI() {
   document.getElementById('nicknameInput').placeholder = t('nicknamePlaceholder');
   document.getElementById('saveNicknameBtn').textContent = t('saveBtn');
   document.getElementById('revisionLabel').textContent = t('revisionTitle');
-
-  document.getElementById('accountSignedOutText').textContent = t('accountSignInPrompt');
-  document.getElementById('signOutBtn').textContent = t('signOutBtn');
-  document.getElementById('sendOtpBtn').textContent = t('sendOtp');
-  document.getElementById('verifyOtpBtn').textContent = t('verifyAndSignIn');
-  document.getElementById('orDividerText').textContent = t('orDivider');
-  document.getElementById('phoneNumberInput').placeholder = t('phoneNumberPlaceholder');
-  document.getElementById('otpInput').placeholder = t('otpPlaceholder');
 
   updateTestScreen();
   renderLeaderboard();
@@ -3166,7 +3024,6 @@ function saveSolvedPool(pool) {
   } catch (e) {
     // storage unavailable — fail silently
   }
-  syncToCloud();
 }
 
 function recordSolvedQuestion(topicId, lang, q, wasCorrect, originalIndex) {
@@ -3275,7 +3132,6 @@ function saveTestHistoryEntry(correct, total) {
   } catch (e) {
     // storage unavailable — fail silently
   }
-  syncToCloud();
 }
 
 function formatHistoryDate(ts) {
@@ -3341,7 +3197,6 @@ function saveNickname(name) {
   } catch (e) {
     // ignore
   }
-  syncToCloud();
 }
 
 function renderLeaderboard() {
@@ -3422,188 +3277,6 @@ document.getElementById('navHomeBtn').onclick = () => { playTapSound(); showScre
 document.getElementById('navTestBtn').onclick = () => { playTapSound(); showScreen('testScreen'); };
 document.getElementById('navLeaderboardBtn').onclick = () => { playTapSound(); showScreen('leaderboardScreen'); };
 document.getElementById('navProfileBtn').onclick = () => { playTapSound(); showScreen('profileScreen'); };
-
-/* ====== FIREBASE SYNC ======
-   Bundles the four localStorage blobs (progress, solved-question pool, test
-   history, nickname) into one Firestore doc per signed-in user, and pulls
-   them back down on sign-in so progress survives reinstalls / new phones. */
-const CLOUD_SYNC_KEYS = {
-  progress: SAVE_KEY,
-  solvedPool: SOLVED_POOL_KEY,
-  testHistory: TEST_HISTORY_KEY,
-  nickname: NICKNAME_KEY
-};
-
-function collectLocalDataForSync() {
-  const data = {};
-  Object.entries(CLOUD_SYNC_KEYS).forEach(([field, key]) => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw !== null) data[field] = raw;
-    } catch (e) {
-      // ignore
-    }
-  });
-  data.updatedAt = Date.now();
-  return data;
-}
-
-function applyCloudDataLocally(data) {
-  if (!data) return;
-  Object.entries(CLOUD_SYNC_KEYS).forEach(([field, key]) => {
-    if (data[field] !== undefined) {
-      try { localStorage.setItem(key, data[field]); } catch (e) { /* ignore */ }
-    }
-  });
-}
-
-function updateSyncStatus(text) {
-  const el = document.getElementById('accountSyncStatus');
-  if (el) el.textContent = text;
-}
-
-function syncToCloud() {
-  if (!currentUser) return;
-  clearTimeout(pendingSyncTimer);
-  pendingSyncTimer = setTimeout(() => {
-    updateSyncStatus(t('syncingStatus'));
-    const data = collectLocalDataForSync();
-    fbDb.collection('users').doc(currentUser.uid).set(data, { merge: true })
-      .then(() => updateSyncStatus(t('syncedStatus')))
-      .catch(() => updateSyncStatus(t('syncedStatus')));
-  }, 1200); // debounce so rapid answers during a quiz don't spam writes
-}
-
-function pullFromCloud() {
-  if (!currentUser) return;
-  fbDb.collection('users').doc(currentUser.uid).get().then(doc => {
-    if (doc.exists) {
-      applyCloudDataLocally(doc.data());
-      loadProgress();
-      currentLang = state.lang;
-      applyLanguageToStaticUI();
-      updateStreakDisplay();
-      const activeScreen = document.querySelector('.screen.active').id;
-      showScreen(activeScreen === 'langScreen' ? 'topicScreen' : activeScreen);
-      document.getElementById('bottomNav').classList.remove('hide');
-    } else {
-      // first time this account has ever signed in — push whatever is on this device
-      syncToCloud();
-    }
-    updateSyncStatus(t('syncedStatus'));
-  }).catch(() => {
-    updateSyncStatus(t('syncedStatus'));
-  });
-}
-
-function updateAccountUI(user) {
-  const signedOut = document.getElementById('accountSignedOut');
-  const signedIn = document.getElementById('accountSignedIn');
-  if (user) {
-    signedOut.style.display = 'none';
-    signedIn.style.display = 'flex';
-    document.getElementById('accountAvatar').src = user.photoURL || '';
-    document.getElementById('accountName').textContent = user.displayName || user.email || 'Signed in';
-  } else {
-    signedOut.style.display = 'block';
-    signedIn.style.display = 'none';
-  }
-}
-
-fbAuth.onAuthStateChanged(user => {
-  currentUser = user;
-  updateAccountUI(user);
-  if (user) pullFromCloud();
-});
-
-document.getElementById('signOutBtn').onclick = () => {
-  playTapSound();
-  fbAuth.signOut();
-  otpConfirmationResult = null;
-  document.getElementById('otpEntryRow').style.display = 'none';
-  document.getElementById('verifyOtpBtn').style.display = 'none';
-  document.getElementById('sendOtpBtn').style.display = 'block';
-  document.getElementById('phoneEntryRow').style.display = 'flex';
-  document.getElementById('phoneNumberInput').value = '';
-  document.getElementById('otpInput').value = '';
-  document.getElementById('otpStatusText').textContent = '';
-};
-
-/* ====== PHONE NUMBER + OTP SIGN-IN ======
-   Google's popup sign-in gets restricted inside embedded WebViews (like the
-   Appilix-built APK), forcing a password screen most students don't
-   remember. Phone OTP works reliably everywhere — browser or packaged app —
-   since it's a direct SMS code, no OAuth redirect involved. */
-let otpConfirmationResult = null;
-let recaptchaVerifier = null;
-
-function getRecaptchaVerifier() {
-  if (!recaptchaVerifier) {
-    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-      size: 'invisible'
-    });
-  }
-  return recaptchaVerifier;
-}
-
-document.getElementById('sendOtpBtn').onclick = () => {
-  playTapSound();
-  const digits = document.getElementById('phoneNumberInput').value.trim();
-  const statusEl = document.getElementById('otpStatusText');
-
-  if (!/^\d{10}$/.test(digits)) {
-    statusEl.textContent = t('invalidPhoneMsg');
-    return;
-  }
-
-  statusEl.textContent = t('sendingOtpMsg');
-  const fullNumber = '+91' + digits;
-  const verifier = getRecaptchaVerifier();
-
-  fbAuth.signInWithPhoneNumber(fullNumber, verifier)
-    .then(result => {
-      otpConfirmationResult = result;
-      statusEl.textContent = t('otpSentMsg');
-      document.getElementById('otpEntryRow').style.display = 'flex';
-      document.getElementById('verifyOtpBtn').style.display = 'block';
-      document.getElementById('sendOtpBtn').style.display = 'none';
-      document.getElementById('phoneEntryRow').style.display = 'none';
-    })
-    .catch(err => {
-      console.error('OTP send failed', err);
-      statusEl.textContent = t('otpFailedMsg') + ' [' + (err.code || 'unknown') + ': ' + (err.message || '') + ']';
-      // reset recaptcha so the next attempt gets a fresh widget
-      if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
-        recaptchaVerifier = null;
-      }
-    });
-};
-
-document.getElementById('verifyOtpBtn').onclick = () => {
-  playTapSound();
-  const code = document.getElementById('otpInput').value.trim();
-  const statusEl = document.getElementById('otpStatusText');
-
-  if (!/^\d{6}$/.test(code)) {
-    statusEl.textContent = t('invalidOtpMsg');
-    return;
-  }
-  if (!otpConfirmationResult) {
-    statusEl.textContent = t('otpFailedMsg');
-    return;
-  }
-
-  statusEl.textContent = t('verifyingOtpMsg');
-  otpConfirmationResult.confirm(code)
-    .then(() => {
-      statusEl.textContent = '';
-    })
-    .catch(err => {
-      console.error('OTP verify failed', err);
-      statusEl.textContent = t('otpWrongMsg');
-    });
-};
 
 /* ====== INIT ======
    Loads any saved progress first. If the person has played before (we have
