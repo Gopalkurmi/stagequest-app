@@ -676,6 +676,38 @@
   .account-info { flex: 1; min-width: 0; }
   .account-name { font-weight: 800; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .account-sync-status { font-size: 12px; color: var(--correct); margin-top: 2px; }
+  .phone-login-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .phone-prefix {
+    background: var(--bg-deep);
+    border: 1px solid var(--border-mid);
+    color: var(--text-light);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .phone-login-row input {
+    flex: 1;
+    background: var(--bg-deep);
+    border: 1px solid var(--border-mid);
+    color: var(--text-light);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .account-status-text { font-size: 12.5px; color: var(--text-dim); margin: 6px 0 10px; min-height: 16px; }
+  .or-divider {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 700;
+    margin: 14px 0;
+  }
 
   .profile-nick-row {
     display: flex;
@@ -835,9 +867,25 @@
     <div class="account-card" id="accountCard">
       <div class="account-signed-out" id="accountSignedOut">
         <div class="account-text" id="accountSignedOutText">Sign in to save your progress permanently, so it's safe even if you reinstall the app.</div>
-        <button class="btn-primary" id="googleSignInBtn">
+
+        <div class="phone-login-row" id="phoneEntryRow">
+          <span class="phone-prefix">+91</span>
+          <input type="tel" id="phoneNumberInput" maxlength="10" placeholder="10-digit mobile number" inputmode="numeric">
+        </div>
+        <button class="btn-primary" id="sendOtpBtn">Send OTP</button>
+
+        <div class="phone-login-row" id="otpEntryRow" style="display:none;">
+          <input type="tel" id="otpInput" maxlength="6" placeholder="Enter 6-digit OTP" inputmode="numeric">
+        </div>
+        <button class="btn-primary" id="verifyOtpBtn" style="display:none;">Verify & Sign In</button>
+        <div class="account-status-text" id="otpStatusText"></div>
+
+        <div class="or-divider" id="orDividerText">— OR —</div>
+        <button class="btn-secondary" id="googleSignInBtn">
           <span id="googleSignInBtnText">Sign in with Google</span>
         </button>
+
+        <div id="recaptcha-container"></div>
       </div>
       <div class="account-signed-in" id="accountSignedIn" style="display:none;">
         <img class="account-avatar" id="accountAvatar" src="" alt="">
@@ -953,6 +1001,18 @@ const UI_TEXT = {
     signOutBtn: "Sign Out",
     syncedStatus: "Synced ✓",
     syncingStatus: "Syncing…",
+    sendOtp: "Send OTP",
+    verifyAndSignIn: "Verify & Sign In",
+    orDivider: "— OR —",
+    phoneNumberPlaceholder: "10-digit mobile number",
+    otpPlaceholder: "Enter 6-digit OTP",
+    otpSentMsg: "OTP sent! Check your SMS.",
+    invalidPhoneMsg: "Please enter a valid 10-digit mobile number.",
+    invalidOtpMsg: "Please enter the 6-digit OTP.",
+    otpFailedMsg: "Couldn't send OTP. Please check the number and try again.",
+    otpWrongMsg: "Wrong OTP. Please try again.",
+    sendingOtpMsg: "Sending OTP…",
+    verifyingOtpMsg: "Verifying…",
     topics: {
       gk: "General Knowledge",
       history: "History",
@@ -1025,6 +1085,18 @@ const UI_TEXT = {
     signOutBtn: "साइन आउट",
     syncedStatus: "सिंक हो गया ✓",
     syncingStatus: "सिंक हो रहा है…",
+    sendOtp: "OTP भेजें",
+    verifyAndSignIn: "वेरिफाई करें और साइन इन करें",
+    orDivider: "— या —",
+    phoneNumberPlaceholder: "10 अंकों का मोबाइल नंबर",
+    otpPlaceholder: "6 अंकों का OTP डालें",
+    otpSentMsg: "OTP भेज दिया गया! अपना SMS चेक करें।",
+    invalidPhoneMsg: "कृपया सही 10 अंकों का मोबाइल नंबर डालें।",
+    invalidOtpMsg: "कृपया 6 अंकों का OTP डालें।",
+    otpFailedMsg: "OTP नहीं भेजा जा सका। नंबर चेक करके दोबारा कोशिश करें।",
+    otpWrongMsg: "गलत OTP। दोबारा कोशिश करें।",
+    sendingOtpMsg: "OTP भेजा जा रहा है…",
+    verifyingOtpMsg: "वेरिफाई हो रहा है…",
     topics: {
       gk: "सामान्य ज्ञान",
       history: "इतिहास",
@@ -2634,6 +2706,11 @@ function applyLanguageToStaticUI() {
   document.getElementById('accountSignedOutText').textContent = t('accountSignInPrompt');
   document.getElementById('googleSignInBtnText').textContent = t('signInWithGoogle');
   document.getElementById('signOutBtn').textContent = t('signOutBtn');
+  document.getElementById('sendOtpBtn').textContent = t('sendOtp');
+  document.getElementById('verifyOtpBtn').textContent = t('verifyAndSignIn');
+  document.getElementById('orDividerText').textContent = t('orDivider');
+  document.getElementById('phoneNumberInput').placeholder = t('phoneNumberPlaceholder');
+  document.getElementById('otpInput').placeholder = t('otpPlaceholder');
 
   updateTestScreen();
   renderLeaderboard();
@@ -3457,6 +3534,90 @@ document.getElementById('googleSignInBtn').onclick = () => {
 document.getElementById('signOutBtn').onclick = () => {
   playTapSound();
   fbAuth.signOut();
+  otpConfirmationResult = null;
+  document.getElementById('otpEntryRow').style.display = 'none';
+  document.getElementById('verifyOtpBtn').style.display = 'none';
+  document.getElementById('sendOtpBtn').style.display = 'block';
+  document.getElementById('phoneEntryRow').style.display = 'flex';
+  document.getElementById('phoneNumberInput').value = '';
+  document.getElementById('otpInput').value = '';
+  document.getElementById('otpStatusText').textContent = '';
+};
+
+/* ====== PHONE NUMBER + OTP SIGN-IN ======
+   Google's popup sign-in gets restricted inside embedded WebViews (like the
+   Appilix-built APK), forcing a password screen most students don't
+   remember. Phone OTP works reliably everywhere — browser or packaged app —
+   since it's a direct SMS code, no OAuth redirect involved. */
+let otpConfirmationResult = null;
+let recaptchaVerifier = null;
+
+function getRecaptchaVerifier() {
+  if (!recaptchaVerifier) {
+    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      size: 'invisible'
+    });
+  }
+  return recaptchaVerifier;
+}
+
+document.getElementById('sendOtpBtn').onclick = () => {
+  playTapSound();
+  const digits = document.getElementById('phoneNumberInput').value.trim();
+  const statusEl = document.getElementById('otpStatusText');
+
+  if (!/^\d{10}$/.test(digits)) {
+    statusEl.textContent = t('invalidPhoneMsg');
+    return;
+  }
+
+  statusEl.textContent = t('sendingOtpMsg');
+  const fullNumber = '+91' + digits;
+  const verifier = getRecaptchaVerifier();
+
+  fbAuth.signInWithPhoneNumber(fullNumber, verifier)
+    .then(result => {
+      otpConfirmationResult = result;
+      statusEl.textContent = t('otpSentMsg');
+      document.getElementById('otpEntryRow').style.display = 'flex';
+      document.getElementById('verifyOtpBtn').style.display = 'block';
+      document.getElementById('sendOtpBtn').style.display = 'none';
+      document.getElementById('phoneEntryRow').style.display = 'none';
+    })
+    .catch(err => {
+      console.error('OTP send failed', err);
+      statusEl.textContent = t('otpFailedMsg');
+      // reset recaptcha so the next attempt gets a fresh widget
+      if (recaptchaVerifier) {
+        recaptchaVerifier.clear();
+        recaptchaVerifier = null;
+      }
+    });
+};
+
+document.getElementById('verifyOtpBtn').onclick = () => {
+  playTapSound();
+  const code = document.getElementById('otpInput').value.trim();
+  const statusEl = document.getElementById('otpStatusText');
+
+  if (!/^\d{6}$/.test(code)) {
+    statusEl.textContent = t('invalidOtpMsg');
+    return;
+  }
+  if (!otpConfirmationResult) {
+    statusEl.textContent = t('otpFailedMsg');
+    return;
+  }
+
+  statusEl.textContent = t('verifyingOtpMsg');
+  otpConfirmationResult.confirm(code)
+    .then(() => {
+      statusEl.textContent = '';
+    })
+    .catch(err => {
+      console.error('OTP verify failed', err);
+      statusEl.textContent = t('otpWrongMsg');
+    });
 };
 
 /* ====== INIT ======
