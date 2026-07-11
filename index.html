@@ -3571,7 +3571,7 @@ document.getElementById('sendOtpBtn').onclick = () => {
     })
     .catch(err => {
       console.error('OTP send failed', err);
-      statusEl.textContent = t('otpFailedMsg');
+      statusEl.textContent = t('otpFailedMsg') + ' [' + (err.code || 'unknown') + ': ' + (err.message || '') + ']';
       // reset recaptcha so the next attempt gets a fresh widget
       if (recaptchaVerifier) {
         recaptchaVerifier.clear();
